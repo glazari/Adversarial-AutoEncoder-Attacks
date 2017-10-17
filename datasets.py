@@ -1,3 +1,4 @@
+import math
 import numpy as np
 import scipy.io
 import os
@@ -31,9 +32,7 @@ def load_SVHN(folder='SVHN/'):
     train_name = folder+'train_32x32.mat'
     mat = scipy.io.loadmat(train_name)
     train_x = mat['X'].transpose([3,0,1,2])
-    n = len(train_x)
-    train_x = train_x.reshape(n,32*32*3)
-    train_x = train_x/255   
+    train_x = train_x.reshape((-1,32*32*3))
     y = mat['y']
     y[y==10] = 0
     train_y = create_1_hot(y)
@@ -42,9 +41,7 @@ def load_SVHN(folder='SVHN/'):
     test_name = folder+'test_32x32.mat'
     mat = scipy.io.loadmat(test_name)
     test_x = mat['X'].transpose([3,0,1,2])
-    n = len(test_x)
-    test_x = test_x.reshape(n,32*32*3)
-    test_x = test_x/255
+    test_x = test_x.reshape((-1,32*32*3))
     y = mat['y']
     y[y==10] = 0
     test_y = create_1_hot(y)
@@ -54,6 +51,24 @@ def load_SVHN(folder='SVHN/'):
     test_set = (test_x, test_y)
     
     return train_set, test_set
+
+def _download_SVHN():
+    
+    _make(main_folder)
+    
+    folder = main_folder+'SVHN/'
+    
+    print('downloading SVHN... (235Mb This may take a while)')
+    
+    os.mkdir(folder)
+    
+    print('downloading trainset....')
+    download_link = 'http://ufldl.stanford.edu/housenumbers/train_32x32.mat'
+    f, m = urllib.request.urlretrieve(download_link, folder+'train_32x32.mat')
+    
+    print('downloading testset....')
+    download_link = 'http://ufldl.stanford.edu/housenumbers/test_32x32.mat'
+    f, m = urllib.request.urlretrieve(download_link, folder+'test_32x32.mat')
 
 def load_Cifar_10(folder='cifar-10-batches-py/'):
     folder = main_folder+folder
@@ -95,24 +110,6 @@ def load_Cifar_10(folder='cifar-10-batches-py/'):
     
     return train, test
 
-def _download_SVHN():
-    
-    _make(main_folder)
-    
-    folder = main_folder+'SVHN/'
-    
-    print('downloading SVHN... (235Mb This may take a while)')
-    
-    os.mkdir(folder)
-    
-    print('downloading trainset....')
-    download_link = 'http://ufldl.stanford.edu/housenumbers/train_32x32.mat'
-    f, m = urllib.request.urlretrieve(download_link, folder+'train_32x32.mat')
-    
-    print('downloading testset....')
-    download_link = 'http://ufldl.stanford.edu/housenumbers/test_32x32.mat'
-    f, m = urllib.request.urlretrieve(download_link, folder+'test_32x32.mat')
-
 def _download_Cifar_10():
     
     _make(main_folder)
@@ -129,6 +126,26 @@ def _download_Cifar_10():
     
     os.remove(download_file)
 
+def load_MNIST(folder='MNIST/'):
+    folder = main_folder+folder    
+    
+    #Tensor flow has a nice API for downloading mnist. In the future I will 
+    #use an aproach that does not rely on tf.
+    import tensorflow.examples.tutorials.mnist.input_data as input_data
+    
+    #this function already downloads the files if they are not present
+    mnist = input_data.read_data_sets(folder, one_hot=True)
+    train_set = (mnist.train.images, mnist.train.labels)
+    test_set = (mnist.test.images, mnist.test.labels)
+    
+    return (train_set, test_set)
+
+    
+def _download_MNIST(folder='MNIST/'):
+    folder = main_folder+folder
+    
+    import tensorflow.examples.tutorials.mnist.input_data as input_data
+    _ = input_data.read_data_sets(folder, one_hot=True)
 
 def batches(X,y,batch_size=128):
     assert len(X) == len(y)
@@ -144,3 +161,15 @@ def batches(X,y,batch_size=128):
     left_over = n % batch_size
     yield X[p[-left_over:]], y[p[-left_over:]]
 
+def split_validation(data_set, percentage=0.2):
+    x, y = data_set
+    n = len(x)
+    size_val = math.floor(n*percentage)
+    size_train = n - size_val
+    i = np.arange(n)
+    i_train = np.random.choice(i,size_train,replace=False)
+    i_val = np.array(list(set(i)-set(i_train)))
+
+    val_set = (x[i_val], y[i_val])
+    train_set = (x[i_train], y[i_train])
+    return train_set, val_set
